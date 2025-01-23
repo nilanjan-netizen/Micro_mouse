@@ -1,0 +1,262 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dynamic Maze with Micromouse</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            margin: 0;
+            padding: 0;
+            background-color: #f4f4f4;
+        }
+
+        #maze {
+            display: grid;
+            gap: 2px;
+            margin: 20px;
+        }
+
+        .cell {
+            width: 40px;
+            height: 40px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            background-color: #fdd835; /* Deep yellow */
+            border: 1px solid #ddd;
+            font-size: 14px;
+            font-weight: bold;
+            position: relative; /* To position arrows inside cells */
+        }
+
+        .cell.obstacle {
+            background-color: #000; /* Black */
+            color: #fff;
+        }
+
+        .cell.start {
+            background-color: #ff5722; /* Red */
+            color: #fff;
+        }
+
+        .cell.end {
+            background-color: #4caf50; /* Green */
+            color: #fff;
+        }
+
+        .arrow {
+            position: absolute;
+            width: 0;
+            height: 0;
+            border-style: solid;
+        }
+
+        .arrow.right {
+            border-width: 5px 0 5px 10px;
+            border-color: transparent transparent transparent #920d0d;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+        }
+
+        .arrow.down {
+            border-width: 10px 5px 0 5px;
+            border-color: #920d0d transparent transparent transparent;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+        }
+
+        .arrow.left {
+            border-width: 5px 10px 5px 0;
+            border-color: transparent #920d0d transparent transparent;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+        }
+
+        .arrow.up {
+            border-width: 0 5px 10px 5px;
+            border-color: transparent transparent #920d0d transparent;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+        }
+
+        button {
+            padding: 10px 20px;
+            font-size: 16px;
+            margin: 10px;
+            cursor: pointer;
+            background-color: #007bff;
+            color: white;
+            border: none;
+            border-radius: 4px;
+        }
+
+        button:hover {
+            background-color: #0056b3;
+        }
+
+        .input-container {
+            margin: 10px;
+        }
+
+        .input-container label {
+            margin-right: 5px;
+            font-size: 16px;
+        }
+
+        .input-container input {
+            width: 50px;
+            padding: 5px;
+            font-size: 16px;
+            text-align: center;
+        }
+
+        #distance {
+            font-size: 18px;
+            margin-top: 10px;
+            color: #333;
+        }
+    </style>
+</head>
+<body>
+    <h1>Dynamic Maze with Micromouse</h1>
+    <div class="input-container">
+        <label for="rows">Rows:</label>
+        <input type="number" id="rows" min="5" value="10">
+        <label for="columns">Columns:</label>
+        <input type="number" id="columns" min="5" value="10">
+        <button onclick="init()">Generate Maze</button>
+        <button onclick="enableSetStart()">Set Start</button>
+        <button onclick="enableSetEnd()">Set End</button>
+        <button onclick="showPath()">Show Path</button>
+    </div>
+    <div id="maze"></div>
+    <div id="distance"></div>
+
+    <script>
+        let currentMaze = [];
+        let start = null;
+        let end = null;
+        let settingStart = false;
+        let settingEnd = false;
+
+        function generateMaze(n, m) {
+            const maze = Array.from({ length: n }, () => Array(m).fill(0));
+            for (let i = 0; i < n; i++) {
+                for (let j = 0; j < m; j++) {
+                    if (Math.random() < 0.3) {
+                        maze[i][j] = 1;
+                    }
+                }
+            }
+            return maze;
+        }
+
+        function displayMaze(maze) {
+            const mazeContainer = document.getElementById('maze');
+            mazeContainer.innerHTML = '';
+            mazeContainer.style.gridTemplateColumns = `repeat(${maze[0].length}, 42px)`;
+            maze.forEach((row, i) => {
+                row.forEach((cell, j) => {
+                    const cellDiv = document.createElement('div');
+                    cellDiv.className = cell === 1 ? 'cell obstacle' : 'cell';
+                    if (start && start[0] === i && start[1] === j) {
+                        cellDiv.className = 'cell start';
+                        cellDiv.textContent = 'Start';
+                    } else if (end && end[0] === i && end[1] === j) {
+                        cellDiv.className = 'cell end';
+                        cellDiv.textContent = 'End';
+                    }
+                    cellDiv.addEventListener('click', () => handleCellClick(i, j));
+                    mazeContainer.appendChild(cellDiv);
+                });
+            });
+        }
+
+        function init() {
+            const n = parseInt(document.getElementById('rows').value, 10);
+            const m = parseInt(document.getElementById('columns').value, 10);
+            start = null;
+            end = null;
+            currentMaze = generateMaze(n, m);
+            displayMaze(currentMaze);
+            document.getElementById('distance').textContent = '';
+        }
+
+        function enableSetStart() {
+            settingStart = true;
+            settingEnd = false;
+        }
+
+        function enableSetEnd() {
+            settingEnd = true;
+            settingStart = false;
+        }
+
+        function handleCellClick(i, j) {
+            if (settingStart) {
+                start = [i, j];
+                settingStart = false;
+            } else if (settingEnd) {
+                end = [i, j];
+                settingEnd = false;
+            }
+            displayMaze(currentMaze);
+        }
+
+        function micromouse(maze) {
+            if (!start || !end) return "Start or End point not set";
+            const n = maze.length;
+            const m = maze[0].length;
+            const directions = [[0, 1], [1, 0], [0, -1], [-1, 0]];
+            const visited = Array.from({ length: n }, () => Array(m).fill(false));
+            const queue = [[...start, [[...start]]]];
+            while (queue.length > 0) {
+                const [x, y, path] = queue.shift();
+                if (x === end[0] && y === end[1]) return path;
+                for (const [dx, dy] of directions) {
+                    const nx = x + dx, ny = y + dy;
+                    if (nx >= 0 && ny >= 0 && nx < n && ny < m && maze[nx][ny] === 0 && !visited[nx][ny]) {
+                        visited[nx][ny] = true;
+                        queue.push([nx, ny, [...path, [nx, ny]]]);
+                    }
+                }
+            }
+            return "No path found";
+        }
+
+        function showPath() {
+            const path = micromouse(currentMaze);
+            if (typeof path === "string") {
+                alert(path);
+                return;
+            }
+            const mazeContainer = document.getElementById('maze');
+            const directions = { "0,1": "right", "1,0": "down", "0,-1": "left", "-1,0": "up" };
+            path.forEach(([x, y], i) => {
+                if (i < path.length - 1) {
+                    const [nx, ny] = path[i + 1];
+                    const dx = nx - x, dy = ny - y;
+                    const direction = directions[`${dx},${dy}`];
+                    const index = x * currentMaze[0].length + y;
+                    const cell = mazeContainer.children[index];
+                    const arrow = document.createElement('div');
+                    arrow.className = `arrow ${direction}`;
+                    cell.appendChild(arrow);
+                }
+            });
+            document.getElementById('distance').textContent = `Shortest Distance: ${path.length - 1}`;
+        }
+
+        document.addEventListener('DOMContentLoaded', init);
+    </script>
+</body>
+</html>
